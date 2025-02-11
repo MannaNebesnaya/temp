@@ -1,0 +1,54 @@
+# Sample compose file
+version: "3"
+services:
+  wiremock:
+    image: "wiremock/wiremock:latest"
+    container_name: my_wiremock
+    volumes:
+      - ./extensions:/var/wiremock/extensions
+      - ./__files:/home/wiremock/__files
+      - ./mappings:/home/wiremock/mappings
+    entrypoint: ["/docker-entrypoint.sh", "--global-response-templating", "--disable-gzip", "--verbose"]
+
+
+version: "3"
+services:
+  wiremock:
+    image: "wiremock/wiremock:latest"
+    container_name: my_wiremock
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./extensions:/var/wiremock/extensions
+      - ./__files:/home/wiremock/__files
+      - ./mappings:/home/wiremock/mappings
+    environment:
+      - WIREMOCK_OPTIONS=--local-response-templating,--preserve-host-header
+    entrypoint: ["/docker-entrypoint.sh", "--global-response-templating", "--disable-gzip", "--verbose"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/__admin/mappings"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - mock-network
+
+networks:
+  mock-network:
+    driver: bridge
+
+
+
+  {
+    "request": {
+      "method": "GET",
+      "url": "/api/user/1"
+    },
+    "response": {
+      "status": 200,
+      "jsonBody": {  // Тело ответа прямо в маппинге
+        "id": 1,
+        "name": "John Doe"
+      }
+    }
+  }
