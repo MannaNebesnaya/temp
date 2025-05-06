@@ -1,0 +1,21 @@
+ kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "9090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      # Отключаем проверку SSL
+      KAFKA_CLUSTERS_0_SSL_ENABLED: 'false'
+      KAFKA_CLUSTERS_0_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+      # Установка протокола безопасности
+      KAFKA_CLUSTERS_0_SECURITY_PROTOCOL: PLAINTEXT
+      # Дополнительные настройки для отладки
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_COM_PROVECTUS: DEBUG
+      # Отключаем проверку обновлений через GitHub
+      UPDATE_CHECK_ENABLED: 'false'
