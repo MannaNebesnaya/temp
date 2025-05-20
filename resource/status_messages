@@ -3,22 +3,28 @@ public Flux<StatusMessage> findStatusMessagesWhereSbpOperIdIsNull(Metadata metad
         .usingWhen(
             getConnectionFactory().create(),
             connection -> {
-                // Выполняем отладочные запросы
-                return Mono.from(connection.createStatement("SHOW search_path").execute())
-                    .flatMap(result -> Mono.from(result.map((row, md) -> 
-                        row.get(0, String.class))))
-                    .doOnNext(path -> log.debug("Current search_path: {}", path))
-                    
-                    .then(Mono.from(connection.createStatement("SELECT current_database()").execute()))
-                    .flatMap(result -> Mono.from(result.map((row, md) -> 
-                        row.get(0, String.class))))
-                    .doOnNext(db -> log.debug("Current database: {}", db))
-                    
-                    // Затем выполняем основной запрос
-                    .then(Flux.from(connection.createStatement(SELECT_STATUS_MESSAGE_WHERE_SBP_OPER_ID_IS_EMPTY)
-                        .execute()));
+                // Создаем Publisher для получения search_path
+                Publisher<String> searchPathPublisher = Flux.from(
+                    connection.createStatement("SHOW search_path").execute())
+                    .flatMap(result -> result.map((row, md) -> row.get(0, String.class)))
+                    .doOnNext(path -> System.out.println("Current search_path: " + path))
+                    .last();
+                
+                // Создаем Publisher для получения имени базы
+                Publisher<String> databasePublisher = Flux.from(
+                    connection.createStatement("SELECT current_database()").execute())
+                    .flatMap(result -> result.map((row, md) -> row.get(0, String.class)))
+                    .doOnNext(db -> System.out.println("Current database: " + db))
+                    .last();
+                
+                // Объединяем выполнение запросов в цепочку
+                return Mono.from(searchPathPublisher)
+                    .then(Mono.from(databasePublisher))
+                    .thenMany(connection.createStatement(SELECT_STATUS_MESSAGE_WHERE_SBP_OPER_ID_IS_EMPTY)
+                        .execute());
             },
-            Connection::close)
+            Connection::close
+        )
         .flatMap(result -> result.map((row, rowMetadata) -> toStatusMessage(row, rowMetadata)))
         .map(r -> {
             logDbRequest(metadata, SqlOperations.SELECT, metadata);
