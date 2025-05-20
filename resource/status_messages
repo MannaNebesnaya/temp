@@ -1,0 +1,27 @@
+public Flux<StatusMessage> findStatusMessagesWhereSbpOperIdIsNull(Metadata metadata) {
+    return Flux
+        .usingWhen(
+            getConnectionFactory().create(),
+            connection -> {
+                // Выполняем отладочные запросы
+                return Mono.from(connection.createStatement("SHOW search_path").execute())
+                    .flatMap(result -> Mono.from(result.map((row, md) -> 
+                        row.get(0, String.class))))
+                    .doOnNext(path -> log.debug("Current search_path: {}", path))
+                    
+                    .then(Mono.from(connection.createStatement("SELECT current_database()").execute()))
+                    .flatMap(result -> Mono.from(result.map((row, md) -> 
+                        row.get(0, String.class))))
+                    .doOnNext(db -> log.debug("Current database: {}", db))
+                    
+                    // Затем выполняем основной запрос
+                    .then(Flux.from(connection.createStatement(SELECT_STATUS_MESSAGE_WHERE_SBP_OPER_ID_IS_EMPTY)
+                        .execute()));
+            },
+            Connection::close)
+        .flatMap(result -> result.map((row, rowMetadata) -> toStatusMessage(row, rowMetadata)))
+        .map(r -> {
+            logDbRequest(metadata, SqlOperations.SELECT, metadata);
+            return logDbResult(r, SqlOperations.SELECT, metadata);
+        });
+}
