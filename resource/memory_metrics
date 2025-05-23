@@ -1,0 +1,20 @@
+@Component
+public class MemoryMonitor {
+    
+    private static final Logger logger = LoggerFactory.getLogger(MemoryMonitor.class);
+    
+    @Scheduled(fixedRate = 30000) // каждые 30 секунд
+    public void logMemoryUsage() {
+        Runtime runtime = Runtime.getRuntime();
+        long totalMemory = runtime.totalMemory();
+        long freeMemory = runtime.freeMemory();
+        long usedMemory = totalMemory - freeMemory;
+        long maxMemory = runtime.maxMemory();
+        
+        logger.info("Memory usage: Used={} MB, Free={} MB, Total={} MB, Max={} MB", 
+                    usedMemory / 1024 / 1024,
+                    freeMemory / 1024 / 1024, 
+                    totalMemory / 1024 / 1024,
+                    maxMemory / 1024 / 1024);
+    }
+}
