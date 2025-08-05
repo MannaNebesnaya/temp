@@ -1,0 +1,193 @@
+build.version: @project.version@
+wmsModuleName: @wmsModuleName@
+
+server:
+  port: ${PORT:10001}
+
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  application:
+    name: @project.name@
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      WRITE_DATES_AS_TIMESTAMPS: false
+    deserialization:
+      ADJUST_DATES_TO_CONTEXT_TIME_ZONE: false
+      FAIL_ON_UNKNOWN_PROPERTIES: false
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQL10Dialect
+        show-sql: false
+        query:
+          fail_on_pagination_over_collection_fetch: true
+        types:
+          print:
+            banner: false
+    open-in-view: false
+  liquibase:
+    change-log: classpath:liquibase/db.changelog-master.xml
+  sleuth:
+    sampler:
+      probability: 1.0
+  cloud:
+    function:
+      definition: measureUnitConsumer;productConsumer;stockBlockingMotiveConsumer;locationConsumer;containerTypeConsumer;adjustmentMotiveConsumer;addressBlockingMotiveConsumer;locationPatternConsumer;addressPatternConsumer;anomalyReasonConsumer;storageClassConsumer
+    stream:
+      kafka:
+        default:
+          consumer:
+            enableDlq: ${KAFKA_CONSUMER_ENABLE_DLQ:false}
+        binder:
+          consumer-properties:
+            max.poll.records: ${KAFKA_CONSUMER_MAX_POLL_RECORDS:1}
+            max.partition.fetch.bytes: ${KAFKA_CONSUMER_MAX_PARTITION_FETCH_BYTES:1048576}
+            fetch.max.bytes: ${KAFKA_CONSUMER_FETCH_MAX_BYTES:52428800}
+      default:
+        group: ${KAFKA_GROUP_EXPOSER:group-exposer}
+        consumer:
+          maxAttempts: ${KAFKA_CONSUMER_MAX_ATTEMPTS:3}
+          backOffInitialInterval: ${KAFKA_CONSUMER_BACKOFF_INITIAL_INTERVAL:2000}
+          backOffMaxInterval: ${KAFKA_CONSUMER_BACKOFF_MAX_INTERVAL:10000}
+          backOffMultiplier: ${KAFKA_CONSUMER_BACKOFF_MULTIPLIER:1.0}
+          retryableExceptions:
+            javax.validation.ConstraintViolationException: false
+            java.lang.ClassCastException: false
+            java.lang.IllegalArgumentException: false
+      bindings:
+        measureUnitConsumer-in-0:
+          destination: ${KAFKA_TOPIC_MD_MEASURE_UNIT:master-data-measure-unit}
+        productConsumer-in-0:
+          destination: ${KAFKA_TOPIC_MD_PRODUCT:master-data-product}
+        stockBlockingMotiveConsumer-in-0:
+          destination: ${KAFKA_TOPIC_MD_STOCK_BLOCKING_MOTIVE:master-data-stock-blocking-motive}
+        locationConsumer-in-0:
+          destination: ${KAFKA_TOPIC_MD_LOCATION:master-data-location}
+        containerTypeConsumer-in-0:
+          destination: ${KAFKA_TOPIC_MD_CONTAINER_TYPE:master-data-container-type}
+        adjustmentMotiveConsumer-in-0:
+          destination: ${KAFKA_TOPIC_MD_ADJUSTMENT_MOTIVE:master-data-adjustment-motive}
+        addressBlockingMotiveConsumer-in-0:
+          destination: ${KAFKA_TOPIC_MD_ADDRESS_BLOCKING_MOTIVE:master-data-address-blocking-motive}
+        anomalyReasonConsumer-in-0:
+          destination: ${KAFKA_TOPIC_MD_ANOMALY_REASON:master-data-anomaly-reason}
+        locationPatternConsumer-in-0:
+          destination: ${KAFKA_TOPIC_MD_LOCATION_PATTERN:master-data-location-pattern}
+        addressPatternConsumer-in-0:
+          destination: ${KAFKA_TOPIC_MD_ADDRESS_PATTERN:master-data-address-pattern}
+        storageClassConsumer-in-0:
+          destination: ${KAFKA_TOPIC_MD_STORAGE_CLASS:master-data-storage-class}
+    kafka:
+      bindings:
+        measureUnitConsumer-in-0:
+          consumer:
+            dlqName: ${KAFKA_TOPIC_MD_MEASURE_UNIT_DLQ:master-data-measure-unit-dlq}
+        productConsumer-in-0:
+          consumer:
+            dlqName: ${KAFKA_TOPIC_MD_PRODUCT_DLQ:master-data-product-dlq}
+        stockBlockingMotiveConsumer-in-0:
+          consumer:
+            dlqName: ${KAFKA_TOPIC_MD_STOCK_BLOCKING_MOTIVE_DLQ:master-data-stock-blocking-motive-dlq}
+        locationConsumer-in-0:
+          consumer:
+            dlqName: ${KAFKA_TOPIC_MD_LOCATION_DLQ:master-data-location-dlq}
+        containerTypeConsumer-in-0:
+          consumer:
+            dlqName: ${KAFKA_TOPIC_MD_CONTAINER_TYPE_DLQ:master-data-container-type-dlq}
+        adjustmentMotiveConsumer-in-0:
+          consumer:
+            dlqName: ${KAFKA_TOPIC_MD_ADJUSTMENT_MOTIVE_DLQ:master-data-adjustment-motive-dlq}
+        addressBlockingMotiveConsumer-in-0:
+          consumer:
+            dlqName: ${KAFKA_TOPIC_MD_ADDRESS_BLOCKING_MOTIVE_DLQ:master-data-address-blocking-motive-dlq}
+        locationPatternConsumer-in-0:
+          consumer:
+            dlqName: ${KAFKA_TOPIC_MD_LOCATION_PATTERN_DLQ:master-data-location-pattern-dlq}
+        addressPatternConsumer-in-0:
+          consumer:
+            dlqName: ${KAFKA_TOPIC_MD_ADDRESS_PATTERN_DLQ:master-data-address-pattern-dlq}
+        anomalyReasonConsumer-in-0:
+          consumer:
+            dlqName: ${KAFKA_TOPIC_MD_ANOMALY_REASON_DLQ:master-data-anomaly-reason-dlq}
+        storageClassConsumer-in-0:
+          consumer:
+            dlqName: ${KAFKA_TOPIC_MD_STORAGE_CLASS_DLQ:master-data-storage-class-dlq}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_ADDRESSES}
+    properties:
+      security.protocol: SASL_SSL
+      sasl.mechanism: SCRAM-SHA-512
+      sasl.jaas.config: org.apache.kafka.common.security.scram.ScramLoginModule required username="${KAFKA_USERNAME}" password="${KAFKA_PASSWORD}";
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    url: /v3/api-docs.yml
+
+management:
+  endpoint:
+    metrics:
+      enabled: false
+    prometheus:
+      enabled: true
+  endpoints:
+    web:
+      base-path: "/"
+      exposure:
+        include: "*"
+      path-mapping:
+        health: actuator/health
+        info: actuator/info
+        prometheus: metrics
+
+logbook:
+  exclude:
+    - /actuator/health
+    - /v2/api-docs/**
+    - /v3/api-docs/**
+    - /v3/api-docs.yml
+    - /swagger-ui.html
+    - /admin/**
+    - /webjars/**
+    - /swagger-resources/**
+    - /swagger-ui/**
+    - /metrics
+  obfuscate:
+    headers:
+      - Authorization
+      - X-Secret
+    parameters:
+      - access_token
+      - password
+  format:
+    style: json
+  strategy: body-only-if-status-at-least
+  minimum-status: ${MINIMUM_STATUS_LOG_BODY:400}
+
+logging:
+  level:
+    ROOT: INFO
+    org.zalando.logbook.Logbook: TRACE
+  pattern:
+    console: "${wmsModuleName}_${spring.application.name} %clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr([-,%X{traceId:-},%X{spanId:-}]){blue}[%thread] %clr(%-5level) %clr(%logger{36}){magenta} - %msg%n"
+
+clients:
+  settings:
+    product-data:
+      root-uri: http://localhost:10000
+      connection-timeout: 5s
+      read-timeout: 10s
+      connection-manager:
+        default-max-per-route: 50
+        max-total: 50
+
+wms:
+  stock-search-max-count: 100
