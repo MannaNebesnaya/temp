@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 15s       # как часто опрашивать таргеты
+  evaluation_interval: 15s   # как часто вычислять правила
+
+scrape_configs:
+  - job_name: 'my-app'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['app:8080']   # имя сервиса из docker-compose
+        labels:
+          application: 'my-app'
