@@ -1,0 +1,1071 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__elements": {},
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "9.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "piechart",
+      "name": "Pie chart",
+      "version": ""
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Мониторинг исходящих HTTP-вызовов (http.client.requests). Spring Boot + Micrometer + Prometheus.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 101,
+      "title": "Request Rate",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "req/s",
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "none",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "title": "RPS by Endpoint",
+      "description": "Количество запросов в секунду (rate) для каждой комбинации method+uri+clientName. Показывает нагрузку на каждую интеграцию.",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum(rate(http_client_requests_seconds_count{application=\"$application\", instance=~\"$instance\", uri=~\"$uri\", clientName=~\"$clientName\", target_host=~\"$targetHost\"}[$__rate_interval])) by (method, uri, clientName, target_host)",
+          "legendFormat": "{{method}} {{clientName}} [{{target_host}}]{{uri}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 11
+      },
+      "id": 102,
+      "title": "Latency",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "seconds",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
+      "id": 20,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "title": "Avg Latency by Endpoint",
+      "description": "Средняя задержка (latency) по каждому эндпоинту. Рассчитывается как rate(sum) / rate(count) — т.е. средняя длительность запроса за интервал.",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum(rate(http_client_requests_seconds_sum{application=\"$application\", instance=~\"$instance\", uri=~\"$uri\", clientName=~\"$clientName\", target_host=~\"$targetHost\"}[$__rate_interval])) by (method, uri, clientName, target_host) / sum(rate(http_client_requests_seconds_count{application=\"$application\", instance=~\"$instance\", uri=~\"$uri\", clientName=~\"$clientName\", target_host=~\"$targetHost\"}[$__rate_interval])) by (method, uri, clientName, target_host)",
+          "legendFormat": "{{method}} {{clientName}} [{{target_host}}]{{uri}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "seconds",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
+      "id": 21,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "title": "P95 / P99 Latency by Endpoint",
+      "description": "Перцентили задержки: P95 и P99. Рассчитываются из histogram_quantile по бакетам http_client_requests_seconds_bucket. Показывают 'хвост' — задержки, которые испытывают 5% и 1% самых медленных запросов.",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "histogram_quantile(0.95, sum(rate(http_client_requests_seconds_bucket{application=\"$application\", instance=~\"$instance\", uri=~\"$uri\", clientName=~\"$clientName\", target_host=~\"$targetHost\"}[$__rate_interval])) by (le, method, uri, clientName, target_host))",
+          "legendFormat": "P95 {{method}} {{clientName}} [{{target_host}}]{{uri}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "histogram_quantile(0.99, sum(rate(http_client_requests_seconds_bucket{application=\"$application\", instance=~\"$instance\", uri=~\"$uri\", clientName=~\"$clientName\", target_host=~\"$targetHost\"}[$__rate_interval])) by (le, method, uri, clientName, target_host))",
+          "legendFormat": "P99 {{method}} {{clientName}} [{{target_host}}]{{uri}}",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "id": 103,
+      "title": "Errors",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "%",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
+          },
+          "unit": "percent",
+          "max": 100,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      },
+      "id": 30,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "title": "Error Rate by Endpoint (%)",
+      "description": "Процент ошибок (4xx + 5xx) от общего числа запросов по каждому эндпоинту. Формула: count(errors) / count(all) * 100.",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum(rate(http_client_requests_seconds_count{application=\"$application\", instance=~\"$instance\", uri=~\"$uri\", clientName=~\"$clientName\", target_host=~\"$targetHost\", outcome=~\"SERVER_ERROR|CLIENT_ERROR\"}[$__rate_interval])) by (method, uri, clientName, target_host) / sum(rate(http_client_requests_seconds_count{application=\"$application\", instance=~\"$instance\", uri=~\"$uri\", clientName=~\"$clientName\", target_host=~\"$targetHost\"}[$__rate_interval])) by (method, uri, clientName, target_host) * 100",
+          "legendFormat": "{{method}} {{clientName}} [{{target_host}}]{{uri}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "req/s",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            }
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 23
+      },
+      "id": 31,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "title": "Errors by Status Code",
+      "description": "Количество ошибочных запросов в секунду, разбитое по HTTP-статусу (4xx/5xx), методу и URI. Позволяет видеть, какие именно ошибки возвращает каждая интеграция.",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum(rate(http_client_requests_seconds_count{application=\"$application\", instance=~\"$instance\", uri=~\"$uri\", clientName=~\"$clientName\", target_host=~\"$targetHost\", status=~\"[4-5]..\"}[$__rate_interval])) by (status, method, uri, clientName, target_host)",
+          "legendFormat": "{{status}} {{method}} {{clientName}} [{{target_host}}]{{uri}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "%",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
+          },
+          "unit": "percent",
+          "max": 100,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      },
+      "id": 32,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "title": "Availability % by Endpoint",
+      "description": "Доступность = (1 - доля SERVER_ERROR) * 100%. Учитывает только 5xx (серверные ошибки), 4xx не считаются проблемой доступности. Позволяет оценить SLA каждой интеграции.",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "(1 - (sum(rate(http_client_requests_seconds_count{application=\"$application\", instance=~\"$instance\", uri=~\"$uri\", clientName=~\"$clientName\", target_host=~\"$targetHost\", outcome=\"SERVER_ERROR\"}[$__rate_interval])) by (method, uri, clientName, target_host) / sum(rate(http_client_requests_seconds_count{application=\"$application\", instance=~\"$instance\", uri=~\"$uri\", clientName=~\"$clientName\", target_host=~\"$targetHost\"}[$__rate_interval])) by (method, uri, clientName, target_host))) * 100",
+          "legendFormat": "{{method}} {{clientName}} [{{target_host}}]{{uri}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 43
+      },
+      "id": 104,
+      "title": "Breakdown",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 44
+      },
+      "id": 40,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
+        "pieType": "donut",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "title": "Outcomes Distribution",
+      "description": "Распределение исходов (outcome) за выбранный период: SUCCESS, CLIENT_ERROR, SERVER_ERROR и т.д. Круговая диаграмма показывает долю каждого типа ответа.",
+      "type": "piechart",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum(increase(http_client_requests_seconds_count{application=\"$application\", instance=~\"$instance\", uri=~\"$uri\", clientName=~\"$clientName\", target_host=~\"$targetHost\"}[$__range])) by (outcome)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 44
+      },
+      "id": 41,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
+        "pieType": "donut",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "title": "Traffic by Endpoint",
+      "description": "Распределение трафика по эндпоинтам за выбранный период. Показывает, какая интеграция генерирует больше всего вызовов.",
+      "type": "piechart",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum(increase(http_client_requests_seconds_count{application=\"$application\", instance=~\"$instance\", uri=~\"$uri\", clientName=~\"$clientName\", target_host=~\"$targetHost\"}[$__range])) by (method, uri, clientName, target_host)",
+          "legendFormat": "{{method}} {{clientName}} [{{target_host}}]{{uri}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 54
+      },
+      "id": 105,
+      "title": "Endpoint Details",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value #RPS"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "RPS"
+              },
+              {
+                "id": "unit",
+                "value": "reqps"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value #ErrorRate"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Error %"
+              },
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 5
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "color-background"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value #AvgLatency"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Avg Latency"
+              },
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value #MaxLatency"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Max Latency"
+              },
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value #TotalRequests"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Total Requests"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 55
+      },
+      "id": 50,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Error %"
+          }
+        ]
+      },
+      "title": "Endpoint Summary Table",
+      "description": "Сводная таблица по всем эндпоинтам: RPS, % ошибок, средняя и максимальная задержка, общее количество запросов за период.",
+      "type": "table",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum(rate(http_client_requests_seconds_count{application=\"$application\", instance=~\"$instance\", uri=~\"$uri\", clientName=~\"$clientName\", target_host=~\"$targetHost\"}[$__rate_interval])) by (method, uri, clientName, target_host)",
+          "format": "table",
+          "instant": true,
+          "refId": "RPS",
+          "legendFormat": ""
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum(rate(http_client_requests_seconds_count{application=\"$application\", instance=~\"$instance\", uri=~\"$uri\", clientName=~\"$clientName\", target_host=~\"$targetHost\", outcome=~\"SERVER_ERROR|CLIENT_ERROR\"}[$__rate_interval])) by (method, uri, clientName, target_host) / sum(rate(http_client_requests_seconds_count{application=\"$application\", instance=~\"$instance\", uri=~\"$uri\", clientName=~\"$clientName\", target_host=~\"$targetHost\"}[$__rate_interval])) by (method, uri, clientName, target_host) * 100",
+          "format": "table",
+          "instant": true,
+          "refId": "ErrorRate",
+          "legendFormat": ""
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum(rate(http_client_requests_seconds_sum{application=\"$application\", instance=~\"$instance\", uri=~\"$uri\", clientName=~\"$clientName\", target_host=~\"$targetHost\"}[$__rate_interval])) by (method, uri, clientName, target_host) / sum(rate(http_client_requests_seconds_count{application=\"$application\", instance=~\"$instance\", uri=~\"$uri\", clientName=~\"$clientName\", target_host=~\"$targetHost\"}[$__rate_interval])) by (method, uri, clientName, target_host)",
+          "format": "table",
+          "instant": true,
+          "refId": "AvgLatency",
+          "legendFormat": ""
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum(http_client_requests_seconds_max{application=\"$application\", instance=~\"$instance\", uri=~\"$uri\", clientName=~\"$clientName\", target_host=~\"$targetHost\"}) by (method, uri, clientName, target_host)",
+          "format": "table",
+          "instant": true,
+          "refId": "MaxLatency",
+          "legendFormat": ""
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum(increase(http_client_requests_seconds_count{application=\"$application\", instance=~\"$instance\", uri=~\"$uri\", clientName=~\"$clientName\", target_host=~\"$targetHost\"}[$__range])) by (method, uri, clientName, target_host)",
+          "format": "table",
+          "instant": true,
+          "refId": "TotalRequests",
+          "legendFormat": ""
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "method": 0,
+              "clientName": 1,
+              "uri": 2,
+              "Value #RPS": 4,
+              "Value #ErrorRate": 5,
+              "Value #AvgLatency": 6,
+              "Value #MaxLatency": 7,
+              "Value #TotalRequests": 8,
+              "target_host": 3
+            },
+            "renameByName": {}
+          }
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": [
+    "http-client",
+    "integrations",
+    "spring-boot",
+    "micrometer"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(http_client_requests_seconds_count, application)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Application",
+        "multi": false,
+        "name": "application",
+        "options": [],
+        "query": {
+          "query": "label_values(http_client_requests_seconds_count, application)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(http_client_requests_seconds_count{application=\"$application\"}, instance)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Instance",
+        "multi": true,
+        "name": "instance",
+        "options": [],
+        "query": {
+          "query": "label_values(http_client_requests_seconds_count{application=\"$application\"}, instance)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(http_client_requests_seconds_count{application=\"$application\"}, clientName)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Client Host",
+        "multi": true,
+        "name": "clientName",
+        "options": [],
+        "query": {
+          "query": "label_values(http_client_requests_seconds_count{application=\"$application\"}, clientName)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(http_client_requests_seconds_count{application=\"$application\"}, target_host)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Target Host (Header)",
+        "multi": true,
+        "name": "targetHost",
+        "options": [],
+        "query": {
+          "query": "label_values(http_client_requests_seconds_count{application=\"$application\"}, target_host)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(http_client_requests_seconds_count{application=\"$application\"}, uri)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "URI",
+        "multi": true,
+        "name": "uri",
+        "options": [],
+        "query": {
+          "query": "label_values(http_client_requests_seconds_count{application=\"$application\"}, uri)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "HTTP Client Integrations",
+  "uid": "",
+  "version": 1,
+  "weekStart": ""
+}
