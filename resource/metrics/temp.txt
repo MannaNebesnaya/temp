@@ -1,0 +1,19 @@
+rate(http_client_requests_seconds_count{
+  application="$application",
+  namespace="$namespace",
+  uri=~"$uri",
+  uri!~"/actuator.*",
+  status=~"$status"
+}[1m])
+
+
+
+sum by (header_host, uri, status) (
+  rate(http_client_requests_seconds_count{
+    application="$application",
+    namespace="$namespace",
+    uri=~"$uri",
+    uri!~"/actuator.*",
+    status=~"$status"
+  }[1m])
+)
