@@ -17,3 +17,6 @@ sum by (header_host, uri, status) (
     status=~"$status"
   }[1m])
 )
+
+
+sum(rate(http_client_requests_seconds_count{application="sbp_callback", instance=~".*:8080"}[$__rate_interval])) by (header_merchant_id)
