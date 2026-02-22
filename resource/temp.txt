@@ -1,0 +1,9 @@
+    public static <P, C> C resolve(P parent, Function<P, C> getter,
+                                    BiConsumer<P, C> setter, Supplier<C> factory) {
+        C child = getter.apply(parent);
+        if (child == null) {
+            child = factory.get();
+            setter.accept(parent, child);
+        }
+        return child;
+    }
