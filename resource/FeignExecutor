@@ -1,0 +1,157 @@
+import com.fasterxml.jackson.databind.ObjectMapper;
+import feign.FeignException;
+import feign.Response;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.Collection;
+import java.util.Map;
+import java.util.function.Supplier;
+
+/**
+ * Единая точка выполнения Feign-запросов с обработкой ошибок.
+ *
+ * Подход: композиция вместо наследования.
+ * Сервисы инжектят FeignExecutor, а не наследуют BaseHttpService.
+ *
+ * Преимущества:
+ * — сервис не тянет protected-методы, которые ему не нужны
+ * — FeignExecutor легко мокается в тестах
+ * — нет проблемы с множественным наследованием, если сервис уже от чего-то наследуется
+ * — нет скрытого состояния в базовом классе
+ */
+@Slf4j
+@Component
+public class FeignExecutor {
+
+    // ── Выполнить запрос + проверить статус ──────────────────────────────
+
+    public Response executeAndCheck(RequestContext ctx,
+                                    Supplier<Response> request) throws IntegrationException {
+        Response response = execute(ctx, request);
+
+        if (response.status() != HttpStatus.OK.value()) {
+            throwOnFailedStatus(response, ctx);
+        }
+        return response;
+    }
+
+    // ── Парсинг ответа ───────────────────────────────────────────────────
+
+    public <T> T parseResponse(ObjectMapper objectMapper, Response response,
+                                Class<T> responseType, RequestContext ctx) throws IntegrationException {
+        try {
+            String bodyText = readBody(response);
+            return objectMapper.readValue(bodyText, responseType);
+        } catch (IntegrationException e) {
+            throw e;
+        } catch (Exception e) {
+            throw error(ctx,
+                    "Ошибка при разборе респонса от " + fullPath(ctx) + " " + e.getMessage(),
+                    e.getMessage());
+        }
+    }
+
+    // ── Внутренняя механика ──────────────────────────────────────────────
+
+    private Response execute(RequestContext ctx,
+                             Supplier<Response> request) throws IntegrationException {
+        String prefix = String.format("Ошибка при обращении к %s %s",
+                ctx.getServiceName(), ctx.getPath());
+        try {
+            return request.get();
+        } catch (FeignException e) {
+            log.error("{} (от {}). {} status={}",
+                    e.getClass().getSimpleName(), ctx.getServiceName(), prefix, e.status(), e);
+            throw error(ctx, prefix + " " + e.getMessage(), e.getMessage());
+        } catch (Exception e) {
+            log.error("Exception (от {}). {}", ctx.getServiceName(), prefix, e);
+            throw error(ctx, prefix + " " + e.getMessage(), e.getMessage());
+        }
+    }
+
+    private void throwOnFailedStatus(Response response,
+                                     RequestContext ctx) throws IntegrationException {
+        String path = fullPath(ctx);
+        String prefix = "Ошибка в респонсе от " + path
+                + " Неуспешный httpStatus: " + response.status() + " ";
+
+        if (response.body() == null) {
+            if (ctx.isFailIfNullBody()) {
+                throw error(ctx, prefix + "body в ответе отсутствует.");
+            }
+            return;
+        }
+
+        String bodyText;
+        try {
+            bodyText = readBody(response);
+        } catch (IOException e) {
+            log.warn("Не удалось прочитать тело ответа от {}", path, e);
+            throw error(ctx, prefix);
+        }
+
+        throw error(ctx, prefix + bodyText, bodyText);
+    }
+
+    // ── Exception factory ────────────────────────────────────────────────
+
+    private IntegrationException error(RequestContext ctx, String message, String details) {
+        return new IntegrationException(message,
+                ctx.getHttpStatusError(), ctx.getServiceName(), ctx.getFailCode(), details);
+    }
+
+    private IntegrationException error(RequestContext ctx, String message) {
+        return new IntegrationException(message,
+                ctx.getHttpStatusError(), ctx.getServiceName());
+    }
+
+    // ── Body / charset ───────────────────────────────────────────────────
+
+    private String readBody(Response response) throws IOException {
+        if (response == null || response.body() == null) {
+            return null;
+        }
+
+        byte[] bodyBytes;
+        try (Response res = response;
+             InputStream is = res.body().asInputStream()) {
+            bodyBytes = is.readAllBytes();
+        }
+
+        String charset = extractCharset(response.headers().get("Content-Type"));
+        return new String(bodyBytes, charset);
+    }
+
+    private String extractCharset(Collection<String> contentTypes) {
+        if (contentTypes == null || contentTypes.isEmpty()) {
+            return StandardCharsets.UTF_8.name();
+        }
+        try {
+            MediaType mediaType = MediaType.parseMediaType(contentTypes.iterator().next());
+            Charset cs = mediaType.getCharset();
+            return cs != null ? cs.name() : StandardCharsets.UTF_8.name();
+        } catch (Exception e) {
+            return StandardCharsets.UTF_8.name();
+        }
+    }
+
+    // ── Utils ────────────────────────────────────────────────────────────
+
+    private String fullPath(RequestContext ctx) {
+        Map<String, String> params = ctx.getQueryParams();
+        if (params == null || params.isEmpty()) {
+            return ctx.getPath();
+        }
+        UriComponentsBuilder builder = UriComponentsBuilder.fromPath(ctx.getPath());
+        params.forEach(builder::queryParam);
+        return builder.toUriString();
+    }
+}
