@@ -1,9 +1,19 @@
-    public static <P, C> C resolve(P parent, Function<P, C> getter,
-                                    BiConsumer<P, C> setter, Supplier<C> factory) {
-        C child = getter.apply(parent);
-        if (child == null) {
-            child = factory.get();
-            setter.accept(parent, child);
-        }
-        return child;
-    }
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.tomcat.embed</groupId>
+            <artifactId>tomcat-embed-core</artifactId>
+            <version>9.0.117</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tomcat.embed</groupId>
+            <artifactId>tomcat-embed-websocket</artifactId>
+            <version>9.0.117</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tomcat.embed</groupId>
+            <artifactId>tomcat-embed-el</artifactId>
+            <version>9.0.117</version>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
