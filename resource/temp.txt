@@ -17,3 +17,82 @@
         </dependency>
     </dependencies>
 </dependencyManagement>
+
+
+
+ private URI capturedUri() {
+        verify(restTemplate).exchange(
+                uriCaptor.capture(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class));
+        return uriCaptor.getValue();
+    }
+
+    // Главный регресс-тест: path с query-строкой не должен давать двойного кодирования
+    @Test
+    void buildUri_pathWithQuery_isNotDoubleEncoded() {
+        stubExchange();
+        final String path = "/public/?id=callback&id_1=mts&id_2=mts&sign=mts";
+
+        httpService.httpRawRequest(
+                HttpMethod.POST, BASE, path, Map.of(), null, "{}");
+
+        final URI uri = capturedUri();
+        assertThat(uri.toString())
+                .isEqualTo(BASE + "/public/?id=callback&id_1=mts&id_2=mts&sign=mts");
+    }
+
+    // Явная проверка отсутствия сигнатур двойного/одинарного кодирования '?'
+    @Test
+    void buildUri_doesNotEncodeQuestionMark() {
+        stubExchange();
+        final String path = "/public/?id=callback&id_1=mts&id_2=mts&sign=mts";
+
+        httpService.httpRawRequest(
+                HttpMethod.POST, BASE, path, Map.of(), null, "{}");
+
+        final String raw = capturedUri().toString();
+        assertThat(raw)
+                .doesNotContain("%253F")  // двойное кодирование
+                .doesNotContain("%3F")    // одинарное кодирование
+                .contains("/public/?");   // '?' остался разделителем query
+    }
+
+    // Query должен распознаваться именно как query, а не как часть path
+    @Test
+    void buildUri_questionMarkSeparatesQuery() {
+        stubExchange();
+        final String path = "/public/?id=callback&sign=mts";
+
+        httpService.httpRawRequest(
+                HttpMethod.POST, BASE, path, Map.of(), null, "{}");
+
+        final URI uri = capturedUri();
+        assertThat(uri.getPath()).isEqualTo("/public/");
+        assertThat(uri.getQuery()).isEqualTo("id=callback&sign=mts");
+    }
+
+    // null urlParams не должен падать (ветка с HashMap)
+    @Test
+    void buildUri_nullUrlParams_doesNotThrow() {
+        stubExchange();
+
+        httpService.httpRawRequest(
+                HttpMethod.POST, BASE, "/public/?id=callback", null, null, "{}");
+
+        assertThat(capturedUri().toString())
+                .isEqualTo(BASE + "/public/?id=callback");
+    }
+
+    // Шаблонные переменные {name} по-прежнему подставляются из urlParams
+    @Test
+    void buildUri_expandsTemplateVariables() {
+        stubExchange();
+        final Map<String, String> params = new HashMap<>();
+        params.put("merchantId", "MA0006326581");
+
+        httpService.httpRawRequest(
+                HttpMethod.POST, BASE, "/public/{merchantId}", Map.of(), params, "{}");
+
+        assertThat(capturedUri().toString())
+                .isEqualTo(BASE + "/public/MA0006326581");
+    }
+}
