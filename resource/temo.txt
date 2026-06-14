@@ -1,0 +1,58 @@
+    public void update(final QrData qrData,
+                       final UniqrCreateReusableRequestDto nspkRequest,
+                       final List<PaymentMethodData> nspkPaymentMethodData,
+                       final QrEntityGetPaymentServicesResponse entityResponse) {
+ 
+        qrData.setMerchantId(nspkRequest.getMerchantId());
+        qrData.setAmount(toLong(nspkRequest.getAmount()));
+        qrData.setAmountEditable(nspkRequest.getAmountEditable());
+        qrData.setPaymentPurpose(nspkRequest.getPaymentPurpose());
+ 
+        // redirectUrl в НСПК — JsonNullable; present -> значение (в т.ч. null = очистить). undefined (на практике не бывает) -> не трогаем.
+        if (nspkRequest.getRedirectUrl() != null && nspkRequest.getRedirectUrl().isPresent()) {
+            qrData.setRedirectUrl(nspkRequest.getRedirectUrl().get());
+        }
+ 
+        qrData.setPaymentMethodData(nspkPaymentMethodData);
+ 
+        // account / acc_alias: если есть в ответе sbp-qr-entity под PS0000000001/PS0000000006 — обновить, иначе оставить как есть.
+        final String account = fromEntity(entityResponse, AdditionalDataGetPSResponse::getAccount);
+        if (account != null) {
+            qrData.setAccount(account);
+        }
+        final String accAlias = fromEntity(entityResponse, AdditionalDataGetPSResponse::getAccAlias);
+        if (accAlias != null) {
+            qrData.setAccAlias(accAlias);
+        }
+ 
+        qrData.setTimeUpdate(new Date()); // текущая дата и время
+    }
+ 
+    // amount в НСПК — String (openapi DTO), в qr_data — Long. Пусто/"null" -> null.
+    private Long toLong(final String amount) {
+        return (amount == null || amount.isEmpty() || "null".equals(amount)) ? null : Long.valueOf(amount);
+    }
+ 
+    // Значение account/accAlias из ответа sbp-qr-entity, где paymentServiceId IN (PS0000000001, PS0000000006).
+    // Счёт общий для СБП и МирЛинк -> берём из любого присутствующего (СБП в приоритете).
+    private String fromEntity(final QrEntityGetPaymentServicesResponse response,
+                              final Function<AdditionalDataGetPSResponse, String> field) {
+        final String sbp = valueFor(response, PS_SBP, field);
+        return sbp != null ? sbp : valueFor(response, PS_MIRLINK, field);
+    }
+ 
+    private String valueFor(final QrEntityGetPaymentServicesResponse response,
+                            final String paymentServiceId,
+                            final Function<AdditionalDataGetPSResponse, String> field) {
+        if (response.getPaymentMethodData() == null) {
+            return null;
+        }
+        return response.getPaymentMethodData().stream()
+                .filter(m -> paymentServiceId.equals(m.getPaymentServiceId()))
+                .map(PaymentMethodDataGetPSResponse::getAdditionalData)
+                .filter(Objects::nonNull)
+                .map(field)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+    }
